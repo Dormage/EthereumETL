@@ -17,19 +17,11 @@ public class Producer implements Runnable {
         runFlag = true;
         this.gson = new Gson();
         this.currentBlock = config.startBlock;
-        try {
-        ProcessBuilder builder = new ProcessBuilder("bash", "-i");
-        builder.redirectErrorStream(true); // so we can ignore the error stream
-        Process process = builder.start();
-        InputStream in = process.getInputStream();
-        bufferedReader = new BufferedReader(new InputStreamReader(in));
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     @Override
     public void run() {
+        startEtlProcess();
         try {
             produce();
         } catch (IOException e) {
@@ -37,9 +29,23 @@ public class Producer implements Runnable {
         }
     }
 
+    public void startEtlProcess(){
+        try {
+            ProcessBuilder builder = new ProcessBuilder("ethereumetl stream --provider-uri https://mainnet.infura.io/v3/32a08700bc2c4012aead1ac416d4dac0 --start-block 10000000 -e transaction");
+            builder.redirectErrorStream(true); // so we can ignore the error stream
+            Process process = builder.start();
+            InputStream in = process.getInputStream();
+            bufferedReader = new BufferedReader(new InputStreamReader(in));
+        } catch (IOException e) {
+            System.out.println(Constants.ERROR+"Failed to open input stream to external process!");
+            e.printStackTrace();
+        }
+    }
+
     public void produce() throws IOException {
         String line;
         while (runFlag && (line = bufferedReader.readLine()) != null ) {
+            System.out.println(Constants.INFO+"Read new line: " + line);
             Transaction transaction = gson.fromJson(line, Transaction.class);
             while (dataQueue.isFull()) {
                 try {
@@ -55,7 +61,7 @@ public class Producer implements Runnable {
             dataQueue.add(transaction);
             dataQueue.notifyAllForEmpty();
         }
-        System.out.println("Producer Stopped");
+        System.out.println(Constants.INFO + "Producer Stopped");
     }
 
     public void stop() {

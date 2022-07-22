@@ -49,10 +49,11 @@ public class Consumer implements Runnable {
                 break;
             }
             transaction = dataQueue.remove();
+            System.out.println(Constants.SUCCESS+"Got new transaction " +transaction.hash);
             dataQueue.notifyAllForFull();
             parseTransaction(transaction);
         }
-        System.out.println("Consumer Stopped");
+        System.out.println(Constants.INFO+"Consumer Stopped");
     }
 
     private void parseTransaction(Transaction transaction) {
