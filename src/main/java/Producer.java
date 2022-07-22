@@ -2,11 +2,13 @@
 public class Producer implements Runnable {
     private final DataQueue dataQueue;
     private volatile boolean runFlag;
+    private Config config;
 
     private static int idSequence = 0;
 
-    public Producer(DataQueue dataQueue) {
+    public Producer(DataQueue dataQueue, Config config) {
         this.dataQueue = dataQueue;
+        this.config = config;
         runFlag = true;
     }
 
