@@ -6,6 +6,7 @@ public class Config {
     public String databaseName;
     public int startBlock;
     public int endBlock;
+    public int collectionId;
 
     @Override
     public String toString() {
