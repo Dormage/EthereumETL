@@ -8,12 +8,14 @@ public class Consumer implements Runnable {
     private final BlockingQueue<Transaction> queue;
     private volatile boolean runFlag;
     private Config config;
-    public Connection conn;
+    private Connection conn;
+    private Status status;
 
-    public Consumer(BlockingQueue<Transaction> queue, Config config) {
+    public Consumer(BlockingQueue<Transaction> queue, Config config, Status status) {
         this.queue = queue;
         runFlag = true;
         this.config = config;
+        this.status = status;
     }
 
     @Override
@@ -21,7 +23,7 @@ public class Consumer implements Runnable {
         consume();
     }
 
-    public void connectDatabase(){
+    public void connectDatabase() {
         Properties connectionProps = new Properties();
         connectionProps.put("user", config.databaseUser);
         connectionProps.put("password", config.databasePassword);
@@ -35,21 +37,21 @@ public class Consumer implements Runnable {
             System.out.println(Constants.NETWORK + "Failed to connected to database: " + e.getMessage());
             e.printStackTrace();
         }
-        System.out.println(Constants.NETWORK + Thread.currentThread().getName() +" Connected to database");
+        System.out.println(Constants.NETWORK + Thread.currentThread().getName() + " Connected to database");
     }
 
     public void consume() {
         connectDatabase();
         while (runFlag) {
             try {
-            Transaction transaction = queue.take();
-            System.out.println(Constants.SUCCESS+"Got new transaction " +transaction);
-            parseTransaction(transaction);
+                Transaction transaction = queue.take();
+                parseTransaction(transaction);
+                status.newTransaction();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-        System.out.println(Constants.INFO+"Consumer Stopped");
+        System.out.println(Constants.INFO + "Consumer Stopped");
     }
 
     private void parseTransaction(Transaction transaction) {

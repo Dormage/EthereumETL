@@ -11,13 +11,15 @@ public class Producer implements Runnable {
     private static int idSequence = 0;
     private Gson gson;
     private int currentBlock;
+    private Status status;
 
-    public Producer(BlockingQueue<Transaction> queue, Config config) {
+    public Producer(BlockingQueue<Transaction> queue, Config config, Status status) {
         this.queue = queue;
         this.config = config;
         runFlag = true;
         this.gson = new Gson();
         this.currentBlock = config.startBlock;
+        this.status = status;
     }
 
     @Override

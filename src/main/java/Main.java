@@ -1,22 +1,24 @@
 import com.google.gson.Gson;
+
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
 import java.util.concurrent.*;
 
 public class Main {
     public static void main(String[] args) {
-        //delete lefover traces from ETL
+        //delete leftover traces from ETL
         try {
             Files.delete(Paths.get("last_synced_block.txt"));
-            System.out.println(Constants.SUCCESS + "Deleted previous files: " );
+            System.out.println(Constants.SUCCESS + "Deleted previous files: ");
         } catch (IOException e) {
             e.printStackTrace();
         }
-
+        //load config
         Gson gson = new Gson();
         Reader reader = null;
         try {
@@ -26,15 +28,20 @@ public class Main {
             e.printStackTrace();
         }
         Config config = gson.fromJson(reader, Config.class);
+
+        Status status = new Status();
         BlockingQueue<Transaction> queue = new LinkedBlockingQueue<Transaction>();
         System.out.println(Constants.INFO + config);
-        Producer producer = new Producer(queue, config);
+        Producer producer = new Producer(queue, config, status);
         Executor pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2);
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < Runtime.getRuntime().availableProcessors() - 2; i++) {
-            consumers.add(new Consumer(queue, config));
+            consumers.add(new Consumer(queue, config, status));
         }
         pool.execute(producer);
         consumers.forEach(consumer -> pool.execute(consumer));
+
+        Timer timer = new Timer();
+        timer.schedule(status, 0, 1000);
     }
 }
