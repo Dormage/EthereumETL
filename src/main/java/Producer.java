@@ -1,9 +1,10 @@
 import com.google.gson.Gson;
 
 import java.io.*;
+import java.util.concurrent.BlockingQueue;
 
 public class Producer implements Runnable {
-    private final DataQueue dataQueue;
+    private final BlockingQueue<Transaction> queue;
     private volatile boolean runFlag;
     private Config config;
     private BufferedReader bufferedReader;
@@ -11,8 +12,8 @@ public class Producer implements Runnable {
     private Gson gson;
     private int currentBlock;
 
-    public Producer(DataQueue dataQueue, Config config) {
-        this.dataQueue = dataQueue;
+    public Producer(BlockingQueue<Transaction> queue, Config config) {
+        this.queue = queue;
         this.config = config;
         runFlag = true;
         this.gson = new Gson();
@@ -29,40 +30,32 @@ public class Producer implements Runnable {
         }
     }
 
-    public void startEtlProcess(){
+    public void startEtlProcess() {
         try {
-            String[] command = {"ethereumetl", "stream", "--provider-uri", "https://mainnet.infura.io/v3/32a08700bc2c4012aead1ac416d4dac0", "--start-block", ""+config.startBlock, "-e", "transaction"};
+            String[] command = {"ethereumetl", "stream",
+                    "--provider-uri", "https://mainnet.infura.io/v3/32a08700bc2c4012aead1ac416d4dac0",
+                    "--start-block", "" + config.startBlock,
+                    "-e", "transaction"};
             ProcessBuilder builder = new ProcessBuilder(command);
-            builder.redirectErrorStream(true); // so we can ignore the error stream
+            builder.redirectError(ProcessBuilder.Redirect.DISCARD);
             Process process = builder.start();
             InputStream in = process.getInputStream();
             bufferedReader = new BufferedReader(new InputStreamReader(in));
         } catch (IOException e) {
-            System.out.println(Constants.ERROR+"Failed to open input stream to external process!");
+            System.out.println(Constants.ERROR + "Failed to open input stream to external process!");
             e.printStackTrace();
         }
     }
 
     public void produce() throws IOException {
         String line;
-        while (runFlag && (line = bufferedReader.readLine()) != null ) {
-            System.out.println(Constants.INFO+"Read new line: " + line);
-            Transaction transaction = gson.fromJson(line, Transaction.class);
-            while (dataQueue.isFull()) {
-                try {
-                    dataQueue.waitOnFull();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    break;
+        while (runFlag) {
+            while ((line = bufferedReader.readLine()) != null) {
+                Transaction transaction = gson.fromJson(line, Transaction.class);
+                queue.offer(transaction);
+                if (transaction.block_number > config.endBlock) {
+                    stop();
                 }
-            }
-            if (!runFlag) {
-                break;
-            }
-            dataQueue.add(transaction);
-            dataQueue.notifyAllForEmpty();
-            if(transaction.block_number >= config.endBlock){
-                stop();
             }
         }
         System.out.println(Constants.INFO + "Producer Stopped");
@@ -70,6 +63,5 @@ public class Producer implements Runnable {
 
     public void stop() {
         runFlag = false;
-        dataQueue.notifyAllForFull();
     }
 }

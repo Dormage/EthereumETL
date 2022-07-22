@@ -2,15 +2,16 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
 
 public class Consumer implements Runnable {
-    private final DataQueue dataQueue;
+    private final BlockingQueue<Transaction> queue;
     private volatile boolean runFlag;
     private Config config;
     public Connection conn;
 
-    public Consumer(DataQueue dataQueue, Config config) {
-        this.dataQueue = dataQueue;
+    public Consumer(BlockingQueue<Transaction> queue, Config config) {
+        this.queue = queue;
         runFlag = true;
         this.config = config;
     }
@@ -40,22 +41,13 @@ public class Consumer implements Runnable {
     public void consume() {
         connectDatabase();
         while (runFlag) {
-            Transaction transaction;
-            if (dataQueue.isEmpty()) {
-                try {
-                    dataQueue.waitOnEmpty();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    break;
-                }
-            }
-            if (!runFlag) {
-                break;
-            }
-            transaction = dataQueue.remove();
-            System.out.println(Constants.SUCCESS+"Got new transaction " +transaction.hash);
-            dataQueue.notifyAllForFull();
+            try {
+            Transaction transaction = queue.take();
+            System.out.println(Constants.SUCCESS+"Got new transaction " +transaction);
             parseTransaction(transaction);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
         System.out.println(Constants.INFO+"Consumer Stopped");
     }
@@ -68,6 +60,5 @@ public class Consumer implements Runnable {
 
     public void stop() {
         runFlag = false;
-        dataQueue.notifyAllForEmpty();
     }
 }

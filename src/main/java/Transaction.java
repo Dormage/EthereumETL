@@ -1,3 +1,5 @@
+import java.math.BigInteger;
+
 public class Transaction {
     String type;
     String hash;
@@ -5,22 +7,33 @@ public class Transaction {
     int transaction_index;
     String from_address;
     String to_address;
-    Long value;
-    long gas;
-    long gas_price;
+    BigInteger value;
+    BigInteger gas;
+    BigInteger gas_price;
     String input;
     long block_timestamp;
     long block_number;
     String block_hash;
-    long max_fee_per_gas;
-    long max_priority_fee_per_gas;
+    BigInteger max_fee_per_gas;
+    BigInteger max_priority_fee_per_gas;
     int transaction_type;
-    long receipt_cumulative_gas_used;
-    long receipt_gas_used;
+    BigInteger receipt_cumulative_gas_used;
+    BigInteger receipt_gas_used;
     String receipt_contract_address;
     String receipt_root;
     int receipt_status;
-    long receipt_effective_gas_price;
-    int item_id;
-    long item_timestamp;
+    BigInteger receipt_effective_gas_price;
+    String item_id;
+    String item_timestamp;
+
+    @Override
+    public String toString() {
+        return "Transaction{" +
+                "hash='" + hash + '\'' +
+                ", from_address='" + from_address + '\'' +
+                ", to_address='" + to_address + '\'' +
+                ", block_number=" + block_number +
+                ", block_hash='" + block_hash + '\'' +
+                '}';
+    }
 }
