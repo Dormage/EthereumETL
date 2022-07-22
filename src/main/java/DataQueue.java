@@ -2,7 +2,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 
 public class DataQueue {
-    private final Queue<Block> queue = new LinkedList<>();
+    private final Queue<Transaction> queue = new LinkedList<>();
     private final int maxSize;
     private final Object FULL_QUEUE = new Object();
     private final Object EMPTY_QUEUE = new Object();
@@ -43,13 +43,13 @@ public class DataQueue {
         }
     }
 
-    public void add(Block message) {
+    public void add(Transaction message) {
         synchronized (queue) {
             queue.add(message);
         }
     }
 
-    public Block remove() {
+    public Transaction remove() {
         synchronized (queue) {
             return queue.poll();
         }

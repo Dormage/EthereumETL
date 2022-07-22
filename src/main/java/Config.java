@@ -4,4 +4,5 @@ public class Config {
     public String databaseAddress;
     public Integer databasePort;
     public String databaseName;
+    public int startBlock;
 }

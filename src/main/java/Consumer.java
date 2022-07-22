@@ -36,7 +36,7 @@ public class Consumer implements Runnable {
 
     public void consume() {
         while (runFlag) {
-            Block block;
+            Transaction transaction;
             if (dataQueue.isEmpty()) {
                 try {
                     dataQueue.waitOnEmpty();
@@ -48,15 +48,15 @@ public class Consumer implements Runnable {
             if (!runFlag) {
                 break;
             }
-            block = dataQueue.remove();
+            transaction = dataQueue.remove();
             dataQueue.notifyAllForFull();
-            parseBlock(block);
+            parseTransaction(transaction);
         }
         System.out.println("Consumer Stopped");
     }
 
-    private void parseBlock(Block block) {
-        if (block != null) {
+    private void parseTransaction(Transaction transaction) {
+        if (transaction != null) {
             //parse and insert into DB
         }
     }
