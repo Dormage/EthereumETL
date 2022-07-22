@@ -13,6 +13,14 @@ public class Consumer implements Runnable {
         this.dataQueue = dataQueue;
         runFlag = true;
         this.config = config;
+    }
+
+    @Override
+    public void run() {
+        consume();
+    }
+
+    public void connectDatabase(){
         Properties connectionProps = new Properties();
         connectionProps.put("user", config.databaseUser);
         connectionProps.put("password", config.databasePassword);
@@ -23,18 +31,14 @@ public class Consumer implements Runnable {
                             ":" + config.databasePort + "/" + config.databaseName,
                     connectionProps);
         } catch (SQLException e) {
-            System.out.println(Constants.NETWORK     + "Failed to connected to database: " + e.getMessage());
+            System.out.println(Constants.NETWORK + "Failed to connected to database: " + e.getMessage());
             e.printStackTrace();
         }
-        System.out.println(Constants.NETWORK + "Connected to database");
-    }
-
-    @Override
-    public void run() {
-        consume();
+        System.out.println(Constants.NETWORK + Thread.currentThread().getName() +" Connected to database");
     }
 
     public void consume() {
+        connectDatabase();
         while (runFlag) {
             Transaction transaction;
             if (dataQueue.isEmpty()) {

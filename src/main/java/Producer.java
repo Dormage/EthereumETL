@@ -31,7 +31,8 @@ public class Producer implements Runnable {
 
     public void startEtlProcess(){
         try {
-            ProcessBuilder builder = new ProcessBuilder("ethereumetl stream --provider-uri https://mainnet.infura.io/v3/32a08700bc2c4012aead1ac416d4dac0 --start-block 10000000 -e transaction");
+            String[] command = {"ethereumetl", "stream", "--provider-uri", "https://mainnet.infura.io/v3/32a08700bc2c4012aead1ac416d4dac0", "--start-block", "10000000", "-e", "transaction`"};
+            ProcessBuilder builder = new ProcessBuilder(command);
             builder.redirectErrorStream(true); // so we can ignore the error stream
             Process process = builder.start();
             InputStream in = process.getInputStream();
