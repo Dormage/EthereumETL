@@ -31,7 +31,7 @@ public class Producer implements Runnable {
 
     public void startEtlProcess(){
         try {
-            String[] command = {"ethereumetl", "stream", "--provider-uri", "https://mainnet.infura.io/v3/32a08700bc2c4012aead1ac416d4dac0", "--start-block", "10000000", "-e", "transaction`"};
+            String[] command = {"ethereumetl", "stream", "--provider-uri", "https://mainnet.infura.io/v3/32a08700bc2c4012aead1ac416d4dac0", "--start-block", ""+config.startBlock, "-e", "transaction"};
             ProcessBuilder builder = new ProcessBuilder(command);
             builder.redirectErrorStream(true); // so we can ignore the error stream
             Process process = builder.start();
@@ -61,6 +61,9 @@ public class Producer implements Runnable {
             }
             dataQueue.add(transaction);
             dataQueue.notifyAllForEmpty();
+            if(transaction.block_number >= config.endBlock){
+                stop();
+            }
         }
         System.out.println(Constants.INFO + "Producer Stopped");
     }

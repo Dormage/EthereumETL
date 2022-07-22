@@ -5,4 +5,5 @@ public class Config {
     public Integer databasePort;
     public String databaseName;
     public int startBlock;
+    public int endBlock;
 }

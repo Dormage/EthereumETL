@@ -1,4 +1,5 @@
 import com.google.gson.Gson;
+import com.google.gson.internal.bind.util.ISO8601Utils;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -11,6 +12,13 @@ import java.util.concurrent.Executors;
 
 public class Main {
     public static void main(String[] args) {
+        //delete lefover traces from ETL
+        try {
+            Files.delete(Paths.get("last_synced_block.txt"));
+            System.out.println(Constants.SUCCESS + "Deleted previous files: " );
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         Gson gson = new Gson();
         Reader reader = null;
