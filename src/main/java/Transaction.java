@@ -34,6 +34,7 @@ public class Transaction {
                 ", to_address='" + to_address + '\'' +
                 ", block_number=" + block_number +
                 ", block_hash='" + block_hash + '\'' +
+                ", value='" + value + '\'' +
                 '}';
     }
 }

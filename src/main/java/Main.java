@@ -31,12 +31,13 @@ public class Main {
 
         Status status = new Status();
         BlockingQueue<Transaction> queue = new LinkedBlockingQueue<Transaction>();
+        AddressStore addressStore = new AddressStore(config);
         System.out.println(Constants.INFO + config);
         Producer producer = new Producer(queue, config, status);
         Executor pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2);
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < Runtime.getRuntime().availableProcessors() - 2; i++) {
-            consumers.add(new Consumer(queue, config, status));
+            consumers.add(new Consumer(queue, config, status,addressStore));
         }
         pool.execute(producer);
         consumers.forEach(consumer -> pool.execute(consumer));

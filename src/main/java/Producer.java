@@ -57,6 +57,7 @@ public class Producer implements Runnable {
                 queue.offer(transaction);
                 if (transaction.block_number > config.endBlock) {
                     stop();
+                    break;
                 }
             }
         }

@@ -11,6 +11,8 @@ public class AddressStore {
     private Config config;
     public Connection conn;
 
+    private int currentLevel;
+
 
     public AddressStore(Config config){
         this.config = config;
@@ -18,6 +20,11 @@ public class AddressStore {
         this.store.add(new HashSet<String>()); //create layer 0
         this.fetchAddresses();
         this.store.add(new HashSet<String>()); // create layer 1
+        this.currentLevel = 1;
+    }
+
+    public int getCurrentLevel(){
+        return this.currentLevel;
     }
 
     /*
@@ -29,6 +36,11 @@ public class AddressStore {
     we are not interested if the address is in layer < n-1 since if it is we have already fetched its transactions
     we can look at this concurrently, since when we lookup n-1 we are inserting addresses in layer n using the function add()
      */
+
+    public boolean contains(String address){
+        return this.store.get(this.store.size()-2).contains(address);
+    }
+
 
     public boolean contains(String address, int level){
         return this.store.get(level).contains(address);
@@ -55,6 +67,7 @@ public class AddressStore {
 
     public void createLevel(){
         this.store.add(new HashSet<String>()); // add layer n+1
+        currentLevel++;
     }
 
 
