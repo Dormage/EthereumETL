@@ -14,7 +14,7 @@ public class Producer implements Runnable {
     private Status status;
     private AddressStore addressStore;
 
-    public Producer(BlockingQueue<Transaction> queue, Config config, Status status, AddressStore addressStore) {
+    public Producer(BlockingQueue<Transaction> queue, Config config, Status status) {
         this.queue = queue;
         this.config = config;
         runFlag = true;
