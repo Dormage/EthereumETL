@@ -12,14 +12,16 @@ public class Producer implements Runnable {
     private Gson gson;
     private int currentBlock;
     private Status status;
+    private AddressStore addressStore;
 
-    public Producer(BlockingQueue<Transaction> queue, Config config, Status status) {
+    public Producer(BlockingQueue<Transaction> queue, Config config, Status status, AddressStore addressStore) {
         this.queue = queue;
         this.config = config;
         runFlag = true;
         this.gson = new Gson();
         this.currentBlock = config.startBlock;
         this.status = status;
+        this.addressStore = addressStore;
     }
 
     @Override
@@ -56,7 +58,13 @@ public class Producer implements Runnable {
                 Transaction transaction = gson.fromJson(line, Transaction.class);
                 queue.offer(transaction);
                 if (transaction.block_number > config.endBlock) {
-                    stop();
+                    if(status.level< config.targetLevel){
+                        addressStore.createLevel();
+                        status.level++;
+                        startEtlProcess();
+                    }else {
+                        stop();
+                    }
                 }
             }
         }

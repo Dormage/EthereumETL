@@ -30,13 +30,14 @@ public class Main {
         Config config = gson.fromJson(reader, Config.class);
 
         Status status = new Status();
+        AddressStore addressStore = new AddressStore(config);
         BlockingQueue<Transaction> queue = new LinkedBlockingQueue<Transaction>();
         System.out.println(Constants.INFO + config);
-        Producer producer = new Producer(queue, config, status);
+        Producer producer = new Producer(queue, config, status, addressStore);
         Executor pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2);
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < Runtime.getRuntime().availableProcessors() - 2; i++) {
-            consumers.add(new Consumer(queue, config, status));
+            consumers.add(new Consumer(queue, config, status, addressStore));
         }
         pool.execute(producer);
         consumers.forEach(consumer -> pool.execute(consumer));

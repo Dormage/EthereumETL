@@ -1,3 +1,4 @@
+import java.math.BigInteger;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -10,12 +11,14 @@ public class Consumer implements Runnable {
     private Config config;
     private Connection conn;
     private Status status;
+    private AddressStore addressStore;
 
-    public Consumer(BlockingQueue<Transaction> queue, Config config, Status status) {
+    public Consumer(BlockingQueue<Transaction> queue, Config config, Status status, AddressStore addressStore) {
         this.queue = queue;
         runFlag = true;
         this.config = config;
         this.status = status;
+        this.addressStore = addressStore;
     }
 
     @Override
@@ -55,9 +58,24 @@ public class Consumer implements Runnable {
     }
 
     private void parseTransaction(Transaction transaction) {
-        if (transaction != null) {
-            //parse and insert into DB
+        if (transaction != null && !transaction.input.equals("0x") && transaction.value.compareTo(BigInteger.ZERO) > 0) {
+            boolean from = addressStore.contains(transaction.from_address, status.level);
+            boolean to = addressStore.contains(transaction.to_address, status.level);
+            if (to && !from) {
+                addressStore.add(transaction.to_address);
+                status.newVertex();
+            }
+            if (from && !to) {
+                addressStore.add(transaction.from_address);
+                status.newVertex();
+            }
+            if (!from && !to) {
+            }
         }
+    }
+
+    private void insertTransaction(Transaction transaction) {
+
     }
 
     public void stop() {

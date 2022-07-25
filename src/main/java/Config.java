@@ -7,6 +7,7 @@ public class Config {
     public int startBlock;
     public int endBlock;
     public int collectionId;
+    public int targetLevel;
 
     @Override
     public String toString() {
