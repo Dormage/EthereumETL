@@ -12,3 +12,6 @@ target/
 
 # Config
 config.json
+
+#example of transaction file
+trx_example.csv
