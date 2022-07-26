@@ -32,7 +32,12 @@ public class Main {
         AddressStore addressStore = new AddressStore(config);
         System.out.println(Constants.INFO + config);
         Producer producer = new Producer(queue, config, status, addressStore);
-        Executor pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2 - config.maxWorkers);
+        Executor pool;
+        if(config.readFile){
+            pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2);
+        }else{
+            pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2 - config.maxWorkers);
+        }
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < Runtime.getRuntime().availableProcessors() - 2; i++) {
             consumers.add(new Consumer(queue, config, status, addressStore));

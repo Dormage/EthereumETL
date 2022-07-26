@@ -14,8 +14,8 @@ public class Config {
     public boolean ipc;
     public String ipcProvider;
     public boolean useTransactionBuffer;
-
     public boolean readFile;
+    public String transactionsFile;
 
     @Override
     public String toString() {

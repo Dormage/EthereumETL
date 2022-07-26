@@ -82,8 +82,9 @@ public class Producer implements Runnable {
 
     public void startReadingCSV(){
         try {
-        bufferedReader = Files.newBufferedReader(Paths.get("trx_example.csv"));
+        bufferedReader = Files.newBufferedReader(Paths.get(config.transactionsFile));
         bufferedReader.readLine(); // throw away the first line (csv header)
+        buffer = new ArrayList<>(1001);
         } catch (IOException e) {
             System.out.println(Constants.ERROR + "Failed to open input stream to csv file!");
             e.printStackTrace();
@@ -97,16 +98,13 @@ public class Producer implements Runnable {
                 Transaction transaction = null;
                 if(config.readFile){
                     transaction = new Transaction(line.split(","));
-
                 }else {
                     transaction = gson.fromJson(line, Transaction.class);
                 }
-                queue.offer(transaction);
                 if (currentBlock < transaction.block_number) {
                     currentBlock++;
                     status.newBlock();
                 }
-                Transaction transaction = gson.fromJson(line, Transaction.class);
                 if (config.useTransactionBuffer) {
                     //
                     if (buffer.size() < 1000) {
@@ -124,19 +122,27 @@ public class Producer implements Runnable {
                     status.newBlock();
                 }
                 if (transaction.block_number > config.endBlock) {
-                    while (!queue.isEmpty()) {
-                    }
+                    while (!queue.isEmpty()) {}
                     if (status.level < config.targetLevel) {
                         addressStore.createLevel();
                         status.level++;
                         status.resetCurrentBlock();
-                        stopEtlProcess();
-                        startEtlProcess();
+                        if(!config.readFile) {
+                            stopEtlProcess();
+                            startEtlProcess();
+                        }else {
+                            bufferedReader.close();
+                            startReadingCSV();
+                        }
                         System.out.println(Constants.SUCCESS + "Total number of wallets added: " + addressStore.store.get(status.level - 1).size());
                     } else {
                         System.out.println(Constants.SUCCESS + "Completed!");
                         stop();
-                        stopEtlProcess();
+                        if(!config.readFile) {
+                            stopEtlProcess();
+                        }else {
+                            bufferedReader.close();
+                        }
                         break;
                     }
                 }
