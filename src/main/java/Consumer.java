@@ -66,10 +66,12 @@ public class Consumer implements Runnable {
                     case "true--false":
                         addressStore.add(transaction.to_address);
                         insertIntoDB(transaction);
+                        status.newVertex();
                         break;
                     case "false--true":
                         addressStore.add(transaction.from_address);
                         insertIntoDB(transaction);
+                        status.newVertex();
                         break;
                     case "true--true":
                         insertIntoDB(transaction);

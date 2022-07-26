@@ -3,6 +3,10 @@ import com.google.gson.Gson;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
 public class Producer implements Runnable {
@@ -15,8 +19,12 @@ public class Producer implements Runnable {
     private int currentBlock;
     private Status status;
     private AddressStore addressStore;
+    private ProcessBuilder builder;
+    private Process process;
+    private InputStream in;
+    private List<Transaction> buffer;
 
-    public Producer(BlockingQueue<Transaction> queue, Config config, Status status) {
+    public Producer(BlockingQueue<Transaction> queue, Config config, Status status, AddressStore addressStore) {
         this.queue = queue;
         this.config = config;
         runFlag = true;
@@ -24,6 +32,7 @@ public class Producer implements Runnable {
         this.currentBlock = config.startBlock;
         this.status = status;
         this.addressStore = addressStore;
+        this.currentBlock = config.startBlock;
     }
 
     @Override
@@ -41,16 +50,29 @@ public class Producer implements Runnable {
     }
 
     public void startEtlProcess() {
+        String[] command = null;
         try {
-            String[] command = {"ethereumetl", "stream",
-                    "--provider-uri", "https://mainnet.infura.io/v3/32a08700bc2c4012aead1ac416d4dac0",
-                    "--start-block", "" + config.startBlock,
-                    "-e", "transaction"};
-            ProcessBuilder builder = new ProcessBuilder(command);
+            if (config.ipc) {
+                command = new String[]{"ethereumetl", "stream",
+                        "-p", config.ipcProvider,
+                        "--start-block", "" + config.startBlock,
+                        "--batch-size", "" + config.batchSize,
+                        "--max-workers", "" + config.maxWorkers,
+                        "-e", "transaction"};
+            } else {
+                command = new String[]{"ethereumetl", "stream",
+                        "--provider-uri", config.providerUrl,
+                        "--start-block", "" + config.startBlock,
+                        "--batch-size", "" + config.batchSize,
+                        "--max-workers", "" + config.maxWorkers,
+                        "-e", "transaction"};
+            }
+            builder = new ProcessBuilder(command);
             builder.redirectError(ProcessBuilder.Redirect.DISCARD);
-            Process process = builder.start();
-            InputStream in = process.getInputStream();
+            process = builder.start();
+            in = process.getInputStream();
             bufferedReader = new BufferedReader(new InputStreamReader(in));
+            buffer = new ArrayList<>(1001);
         } catch (IOException e) {
             System.out.println(Constants.ERROR + "Failed to open input stream to external process!");
             e.printStackTrace();
@@ -80,18 +102,64 @@ public class Producer implements Runnable {
                     transaction = gson.fromJson(line, Transaction.class);
                 }
                 queue.offer(transaction);
+                if (currentBlock < transaction.block_number) {
+                    currentBlock++;
+                    status.newBlock();
+                }
+                Transaction transaction = gson.fromJson(line, Transaction.class);
+                if (config.useTransactionBuffer) {
+                    //
+                    if (buffer.size() < 1000) {
+                        buffer.add(transaction);
+                    } else {
+                        queue.addAll(buffer);
+                        buffer.clear();
+                    }
+                }else{
+                    queue.offer(transaction);
+                }
+                status.queueSize = queue.size();
+                if (currentBlock < transaction.block_number) {
+                    currentBlock++;
+                    status.newBlock();
+                }
                 if (transaction.block_number > config.endBlock) {
-                    if(status.level< config.targetLevel){
+                    while (!queue.isEmpty()) {
+                    }
+                    if (status.level < config.targetLevel) {
                         addressStore.createLevel();
                         status.level++;
+                        status.resetCurrentBlock();
+                        stopEtlProcess();
                         startEtlProcess();
-                    }else {
+                        System.out.println(Constants.SUCCESS + "Total number of wallets added: " + addressStore.store.get(status.level - 1).size());
+                    } else {
+                        System.out.println(Constants.SUCCESS + "Completed!");
                         stop();
+                        stopEtlProcess();
+                        break;
                     }
                 }
             }
         }
         System.out.println(Constants.INFO + "Producer Stopped");
+    }
+
+    private void stopEtlProcess() {
+        try {
+            in.close();
+            process.destroy();
+            System.out.println(Constants.INFO + "ETL process shut down!");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try {
+            Files.delete(Paths.get("last_synced_block.txt"));
+            System.out.println(Constants.SUCCESS + "Deleted previous files: ");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void stop() {

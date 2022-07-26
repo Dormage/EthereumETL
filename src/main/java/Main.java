@@ -15,9 +15,7 @@ public class Main {
         try {
             Files.delete(Paths.get("last_synced_block.txt"));
             System.out.println(Constants.SUCCESS + "Deleted previous files: ");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        } catch (IOException e) {}
         //load config
         Gson gson = new Gson();
         Reader reader = null;
@@ -29,15 +27,15 @@ public class Main {
         }
         Config config = gson.fromJson(reader, Config.class);
 
-        Status status = new Status();
+        Status status = new Status(config);
         BlockingQueue<Transaction> queue = new LinkedBlockingQueue<Transaction>();
         AddressStore addressStore = new AddressStore(config);
         System.out.println(Constants.INFO + config);
-        Producer producer = new Producer(queue, config, status);
-        Executor pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2);
+        Producer producer = new Producer(queue, config, status, addressStore);
+        Executor pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2 - config.maxWorkers);
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < Runtime.getRuntime().availableProcessors() - 2; i++) {
-            consumers.add(new Consumer(queue, config, status,addressStore));
+            consumers.add(new Consumer(queue, config, status, addressStore));
         }
         pool.execute(producer);
         consumers.forEach(consumer -> pool.execute(consumer));

@@ -8,6 +8,12 @@ public class Config {
     public int endBlock;
     public int collectionId;
     public int targetLevel;
+    public String providerUrl; //https://mainnet.infura.io/v3/32a08700bc2c4012aead1ac416d4dac0
+    public int maxWorkers;
+    public int batchSize;
+    public boolean ipc;
+    public String ipcProvider;
+    public boolean useTransactionBuffer;
 
     public boolean readFile;
 
