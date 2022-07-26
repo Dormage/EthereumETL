@@ -117,10 +117,6 @@ public class Producer implements Runnable {
                     queue.offer(transaction);
                 }
                 status.queueSize = queue.size();
-                if (currentBlock < transaction.block_number) {
-                    currentBlock++;
-                    status.newBlock();
-                }
                 if (transaction.block_number > config.endBlock) {
                     while (!queue.isEmpty()) {}
                     if (status.level < config.targetLevel) {

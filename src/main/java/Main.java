@@ -28,23 +28,22 @@ public class Main {
         Config config = gson.fromJson(reader, Config.class);
 
         Status status = new Status(config);
-        BlockingQueue<Transaction> queue = new LinkedBlockingQueue<Transaction>();
+        BlockingQueue<Transaction> queue = new LinkedBlockingQueue<Transaction>(100000);
         AddressStore addressStore = new AddressStore(config);
         System.out.println(Constants.INFO + config);
-        Producer producer = new Producer(queue, config, status, addressStore);
+        ProducerManager producer = new ProducerManager(queue, config, status, addressStore);
         Executor pool;
         if(config.readFile){
-            pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2);
+            pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - config.producers - 2);
         }else{
             pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2 - config.maxWorkers);
         }
         List<Consumer> consumers = new ArrayList<>();
-        for (int i = 0; i < Runtime.getRuntime().availableProcessors() - 2; i++) {
+        for (int i = 0; i < Runtime.getRuntime().availableProcessors() - config.producers - 2; i++) {
             consumers.add(new Consumer(queue, config, status, addressStore));
         }
         pool.execute(producer);
         consumers.forEach(consumer -> pool.execute(consumer));
-
         Timer timer = new Timer();
         timer.schedule(status, 0, 1000);
     }

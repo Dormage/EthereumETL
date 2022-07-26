@@ -17,6 +17,8 @@ public class Config {
     public boolean readFile;
     public String transactionsFile;
 
+    public int producers;
+
     @Override
     public String toString() {
         return "Config{" +

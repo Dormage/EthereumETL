@@ -62,4 +62,8 @@ public class Status extends TimerTask {
     public void resetCurrentBlock() {
         currentBlock = 1;
     }
+
+    public int getCurrentBlock(){
+        return this.currentBlock;
+    }
 }
