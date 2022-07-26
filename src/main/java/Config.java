@@ -9,6 +9,8 @@ public class Config {
     public int collectionId;
     public int targetLevel;
 
+    public boolean readFile;
+
     @Override
     public String toString() {
         return "Config{" +

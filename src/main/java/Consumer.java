@@ -130,7 +130,7 @@ public class Consumer implements Runnable {
         preparedStmt.setString (4, transaction.from_address);
         preparedStmt.setString (5, transaction.to_address);
         preparedStmt.setLong    (6, Long.parseLong(transaction.gas_price.toString()));
-        preparedStmt.setLong    (7, Long.parseLong(transaction.receipt_cumulative_gas_used.toString()));
+        preparedStmt.setLong    (7, Long.parseLong(transaction.gas.toString()));
         preparedStmt.setTimestamp   (8, new Timestamp(transaction.block_timestamp));
         preparedStmt.setString (9, transaction.hash);
         preparedStmt.setInt    (10, addressStore.getCurrentLevel()-1);

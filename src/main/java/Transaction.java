@@ -26,6 +26,24 @@ public class Transaction {
     String item_id;
     String item_timestamp;
 
+    public Transaction(String[] line){
+        this.hash = line[0];
+        this.nonce = Integer.parseInt(line[1]);
+        this.block_hash = line[2];
+        this.block_number = Long.parseLong(line[3]);
+        this.transaction_index = Integer.parseInt(line[4]);
+        this.from_address = line[5];
+        this.to_address = line[6];
+        this.value = new BigInteger(line[7]);
+        this.gas = new BigInteger(line[8]);
+        this.gas_price = new BigInteger(line[9]);
+        this.input = line[10];
+        this.block_timestamp = Long.parseLong(line[11]);
+        this.max_fee_per_gas = new BigInteger((line[12].equals(""))? "0":line[12]);
+        this.max_priority_fee_per_gas = new BigInteger((line[13].equals(""))? "0":line[13]);
+        this.transaction_type = Integer.parseInt((line[14].equals(""))? "0":line[14]);
+    }
+
     @Override
     public String toString() {
         return "Transaction{" +
@@ -37,4 +55,7 @@ public class Transaction {
                 ", value='" + value + '\'' +
                 '}';
     }
+
+
+
 }

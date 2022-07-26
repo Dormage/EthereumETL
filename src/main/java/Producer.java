@@ -1,6 +1,8 @@
 import com.google.gson.Gson;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.BlockingQueue;
 
 public class Producer implements Runnable {
@@ -26,7 +28,11 @@ public class Producer implements Runnable {
 
     @Override
     public void run() {
-        startEtlProcess();
+        if(config.readFile) {
+            startReadingCSV();
+        }else {
+            startEtlProcess();
+        }
         try {
             produce();
         } catch (IOException e) {
@@ -51,11 +57,28 @@ public class Producer implements Runnable {
         }
     }
 
+
+    public void startReadingCSV(){
+        try {
+        bufferedReader = Files.newBufferedReader(Paths.get("trx_example.csv"));
+        bufferedReader.readLine(); // throw away the first line (csv header)
+        } catch (IOException e) {
+            System.out.println(Constants.ERROR + "Failed to open input stream to csv file!");
+            e.printStackTrace();
+        }
+    }
+
     public void produce() throws IOException {
         String line;
         while (runFlag) {
             while ((line = bufferedReader.readLine()) != null) {
-                Transaction transaction = gson.fromJson(line, Transaction.class);
+                Transaction transaction = null;
+                if(config.readFile){
+                    transaction = new Transaction(line.split(","));
+
+                }else {
+                    transaction = gson.fromJson(line, Transaction.class);
+                }
                 queue.offer(transaction);
                 if (transaction.block_number > config.endBlock) {
                     if(status.level< config.targetLevel){
