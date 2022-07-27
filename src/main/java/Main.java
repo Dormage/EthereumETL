@@ -30,9 +30,9 @@ public class Main {
         Config config = gson.fromJson(reader, Config.class);
 
 
-        BlockingQueue<String> lineQueue = new LinkedBlockingQueue<String>(1000000);
+        BlockingQueue<String> lineQueue = new LinkedBlockingQueue<String>();
         BlockingQueue<Transaction> insertionQueue = new LinkedBlockingQueue<Transaction>(100000);
-        Status status = new Status(config,lineQueue,insertionQueue);
+        Status status = new Status(config, lineQueue, insertionQueue);
         AddressStore addressStore = new AddressStore(config);
         System.out.println(Constants.INFO + config);
         //ProducerManager producer = new ProducerManager(lineQueue, config, status, addressStore);
@@ -53,10 +53,8 @@ public class Main {
             try {
                 System.out.println(Constants.WARN + "Splitting file, this will take a while...");
                 File root = new File(System.getProperty("user.dir"));
-                dir = new File(root.getAbsolutePath()+ File.separator + "cache");
+                dir = new File(root.getAbsolutePath() + File.separator + "cache");
                 if (dir.mkdirs()) {
-                    //System.out.println(Constants.ERROR + "Failed to create directory cache");
-
                     if (!root.isDirectory()) {
                         System.out.println(Constants.ERROR + "File directory not found!");
                     }
@@ -81,25 +79,27 @@ public class Main {
 
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < Runtime.getRuntime().availableProcessors() - config.producers - 2; i++) {
-            consumers.add(new Consumer(lineQueue,insertionQueue, config, status, addressStore));
+            consumers.add(new Consumer(lineQueue, insertionQueue, config, status, addressStore));
         }
-        for (Consumer consumer: consumers ) {
+        for (Consumer consumer : consumers) {
             pool.execute(consumer);
         }
         Timer timer = new Timer();
         timer.schedule(status, 0, 1000);
-        Inserter dbFeeder = new Inserter(insertionQueue,config,status,addressStore);
+        Inserter dbFeeder = new Inserter(insertionQueue, config, status, addressStore);
         Thread thread = new Thread(dbFeeder);
         thread.start();
         if (config.splitFile) {
             CyclicBarrier cyclicBarrier = new CyclicBarrier(files.length, () -> {
-                System.out.println("Completed level " +status.level+" waiting empty queue");
-                while(!lineQueue.isEmpty()){}
+                System.out.println("Completed level " + status.level + " waiting empty queue");
+                while (!lineQueue.isEmpty()) {
+                }
                 System.out.println("Starting new level");
                 status.level++;
                 addressStore.createLevel();
-                if(status.level == config.targetLevel){
-                    while(!lineQueue.isEmpty()||!insertionQueue.isEmpty()||!dbFeeder.fullBatch){}
+                if (status.level == config.targetLevel) {
+                    while (!lineQueue.isEmpty() || !insertionQueue.isEmpty() || !dbFeeder.fullBatch) {
+                    }
                     dbFeeder.dumpBatch();
                     System.exit(0);
                 }
@@ -107,7 +107,7 @@ public class Main {
 
 
             for (int i = 0; i < files.length; i++) {
-                    producerPool.execute(new SplitProducer(lineQueue, config, status, addressStore, files[i], cyclicBarrier));
+                producerPool.execute(new SplitProducer(lineQueue, config, status, addressStore, files[i], cyclicBarrier));
             }
         }
     }

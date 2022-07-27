@@ -12,13 +12,9 @@ public class Inserter implements  Runnable{
     private Status status;
     private AddressStore addressStore;
     public Connection conn;
-
     private HashSet<String> insertedTransactions = new HashSet<String>();
-
     private PreparedStatement batchStatement;
-
     public int batchSize = 0;
-
     long start = System.currentTimeMillis();
 
     public Inserter(BlockingQueue<Transaction> insertionQueue, Config config, Status status, AddressStore addressStore) {
@@ -45,7 +41,6 @@ public class Inserter implements  Runnable{
         }
     }
 
-
     public void connectDatabase() {
         Properties connectionProps = new Properties();
         connectionProps.put("user", config.databaseUser);
@@ -64,7 +59,6 @@ public class Inserter implements  Runnable{
         }
         System.out.println(Constants.NETWORK + Thread.currentThread().getName() + " Connected to database");
     }
-
 
     private void insertIntoDB(Transaction transaction) {
         try
@@ -133,7 +127,6 @@ public class Inserter implements  Runnable{
             fullBatch = false;
             batchSize = 0; // 162488
         }
-
     }
 
     public void dumpBatch(){

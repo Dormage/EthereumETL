@@ -14,30 +14,20 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
-public class ProducerWorker implements Runnable{
+public class ProducerWorker implements Runnable {
     private final BlockingQueue<Transaction> queue;
     private boolean runFlag;
     private Config config;
-
     private static int idSequence = 0;
-
     private long currentBlock = 0;
     private Status status;
-
     private long fromByte;
-
     private long currentByte;
     private long toByte;
-
     private StringBuilder stringTransaction;
-
     private boolean isFirstLine = true;
 
-
-
-
-
-    public ProducerWorker(BlockingQueue<Transaction> queue, Config config, Status status,long fromByte, long toByte) {
+    public ProducerWorker(BlockingQueue<Transaction> queue, Config config, Status status, long fromByte, long toByte) {
         this.queue = queue;
         this.config = config;
         runFlag = true;
@@ -47,11 +37,10 @@ public class ProducerWorker implements Runnable{
         this.toByte = toByte;
     }
 
-
     @Override
     public void run() {
         try {
-            FileChannel fileChannel  = new RandomAccessFile(config.transactionsFile, "r").getChannel();
+            FileChannel fileChannel = new RandomAccessFile(config.transactionsFile, "r").getChannel();
             fileChannel.position(this.fromByte);
             stringTransaction = new StringBuilder();
             ByteBuffer byteBuffer = ByteBuffer.allocate(4096);
@@ -61,30 +50,29 @@ public class ProducerWorker implements Runnable{
                 readBuffer(byteBuffer);
                 byteBuffer.clear();
             }
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void readBuffer(ByteBuffer buffer){
+    public void readBuffer(ByteBuffer buffer) {
         for (int i = 0; i < buffer.limit(); i++) {
             char c = (char) buffer.get();
             //System.out.print(c); //Print the content of file
             this.currentByte++;
             if ('\n' == c) {
-                if(isFirstLine){ // throw away the first line, which is read by the previous thread or is a header
+                if (isFirstLine) { // throw away the first line, which is read by the previous thread or is a header
                     isFirstLine = false;
-                }else{
+                } else {
                     //enqueueTransaction(stringTransaction.toString());
                 }
                 stringTransaction = new StringBuilder();
-                if(this.fromByte + this.currentByte > this.toByte){
+                if (this.fromByte + this.currentByte > this.toByte) {
                     //we reached the end
                     stop();
                     break;
                 }
-            }else{
+            } else {
                 stringTransaction.append(c);
             }
         }
@@ -103,7 +91,6 @@ public class ProducerWorker implements Runnable{
         }
     }
 */
-
 
 
     public void stop() {
