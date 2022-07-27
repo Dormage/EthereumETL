@@ -1,7 +1,7 @@
 import java.util.TimerTask;
 
 public class Status extends TimerTask {
-    long totalTrasactions;
+    long totalTransactions;
     long queueSize;
     long currentTransactions;
     int level;
@@ -12,7 +12,7 @@ public class Status extends TimerTask {
     private Config config;
 
     public Status(Config config) {
-        totalTrasactions = 0;
+        totalTransactions = 0;
         currentTransactions = 0;
         queueSize = 0;
         level = 0;
@@ -27,8 +27,8 @@ public class Status extends TimerTask {
     public void run() {
         float progress = ((currentBlock *1f / (config.endBlock - config.startBlock) * 100));
         System.out.print(Constants.STATUS + "Processed: " + currentTransactions
-                + " Total: " + totalTrasactions
-                + " Avg " + (totalTrasactions / ticks) + " /s"
+                + " Total: " + totalTransactions
+                + " Avg " + (totalTransactions / ticks) + " /s"
                 + " Vertices new: " + newVertices
                 + " Vertices total: " + totalVertices
                 + " Level: " + level
@@ -40,22 +40,22 @@ public class Status extends TimerTask {
     }
 
     private void reset() {
-        totalTrasactions += currentTransactions;
+        totalTransactions += currentTransactions;
         currentTransactions = 0;
         totalVertices += newVertices;
         newVertices = 0;
         ticks++;
     }
 
-    public synchronized void newTransaction() {
+    public void newTransaction() {
         currentTransactions++;
     }
 
-    public synchronized void newVertex() {
+    public void newVertex() {
         newVertices++;
     }
 
-    public synchronized void newBlock() {
+    public void newBlock() {
         currentBlock++;
     }
 

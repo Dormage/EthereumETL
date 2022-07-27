@@ -12,8 +12,8 @@ public class Constants {
     public static final String INFO = "\u001B[45m  \u001B[0m\033[1;35m Info:     \033[4;35m";
     public static final String RESULT = "\u001B[42m  \u001B[0m\033[1;32m Result:   \033[4;32m";
     public static final String NET = "\u001B[45m  \u001B[0m\033[1;35m Network:    \033[4;35m";
-    public static final String STATUS = "\u001B[44m  \u001B[0m\033[1;34m Status:    \033[4;34m";
-    public static final String ERROR = "\u001B[41m  \u001B[0m\033[1;31m Error:      \033[4;31m";
+    public static final String STATUS = "\u001B[44m  \u001B[0m\033[1;34m Status:   \033[4;34m";
+    public static final String ERROR = "\u001B[41m  \u001B[0m\033[1;31m Error:    \033[4;31m";
 
 
     public static final String RESET = "\u001B[0m";

@@ -16,8 +16,9 @@ public class Config {
     public boolean useTransactionBuffer;
     public boolean readFile;
     public String transactionsFile;
-
+    public boolean splitFile;
     public int producers;
+    public long splitSize;
 
     @Override
     public String toString() {
