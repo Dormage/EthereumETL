@@ -1,17 +1,23 @@
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.sql.*;
+import java.util.ArrayList;
 import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 
 public class Consumer implements Runnable {
-    private final BlockingQueue<Transaction> queue;
+    private final BlockingQueue<ArrayList<ByteStructure>> queue;
     private volatile boolean runFlag;
     private Config config;
     private Connection conn;
     private Status status;
     private AddressStore addressStore;
 
-    public Consumer(BlockingQueue<Transaction> queue, Config config, Status status, AddressStore addressStore) {
+    int count = 0;
+
+    private ArrayList<ByteStructure> bufferOfBuffers;
+
+    public Consumer(BlockingQueue<ArrayList<ByteStructure>> queue, Config config, Status status, AddressStore addressStore) {
         this.queue = queue;
         runFlag = true;
         this.config = config;
@@ -34,7 +40,8 @@ public class Consumer implements Runnable {
                             config.databaseAddress +
                             ":" + config.databasePort + "/" + config.databaseName,
                     connectionProps);
-            conn.setAutoCommit(false); // set autocommit off for concurrent READ & WRITE
+            //conn.setAutoCommit(false); // set autocommit off for concurrent READ & WRITE
+            //conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         } catch (SQLException e) {
             System.out.println(Constants.NETWORK + "Failed to connected to database: " + e.getMessage());
             e.printStackTrace();
@@ -46,14 +53,37 @@ public class Consumer implements Runnable {
         connectDatabase();
         while (runFlag) {
             try {
-                Transaction transaction = queue.take();
-                parseTransaction(transaction);
-                status.newTransaction();
+                bufferOfBuffers = queue.take();
+                status.startWork();
+                parseBuffer(bufferOfBuffers);
+                status.endWork();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
         System.out.println(Constants.INFO + "Consumer Stopped");
+    }
+
+
+    private void parseBuffer(ArrayList<ByteStructure> bufferOfBuffers){
+        status.queueSize = queue.size();
+        //System.out.println(Thread.currentThread().getName() +" BufferId: "+ bufferOfBuffers.get(0).bufferId);
+        for (ByteStructure buffer:bufferOfBuffers ) {
+            StringBuilder stringTransaction = new StringBuilder();
+            //System.out.println("offests: "+buffer.startOffset+" e: "+buffer.endOffset);
+            for (long i = buffer.startOffset; i < buffer.endOffset; i++) {
+                char c = (char) buffer.buffer[(int)i];
+
+                if ('\n' == c) {
+                    status.newTransaction();
+                    parseTransaction(new Transaction(stringTransaction.toString().split(",")));
+                    stringTransaction = new StringBuilder();
+                }else{
+                    stringTransaction.append(c);
+                }
+            }
+        }
+
     }
 
     private void parseTransaction(Transaction transaction) {
@@ -62,6 +92,7 @@ public class Consumer implements Runnable {
             //filter out non interesting transactions
             if(transaction.value.compareTo(new BigInteger("0")) != 0 && transaction.input.compareTo("0x") == 0){
                 String lookup = String.valueOf(addressStore.contains(transaction.from_address)) + "--" + String.valueOf(addressStore.contains(transaction.to_address));
+
                 switch (lookup){
                     case "true--false":
                         addressStore.add(transaction.to_address);
@@ -72,6 +103,7 @@ public class Consumer implements Runnable {
                         addressStore.add(transaction.from_address);
                         insertIntoDB(transaction);
                         status.newVertex();
+
                         break;
                     case "true--true":
                         insertIntoDB(transaction);
@@ -84,10 +116,14 @@ public class Consumer implements Runnable {
     private void insertIntoDB(Transaction transaction) {
         try
         {
+            insertTransaction(transaction);
+/*            conn.setAutoCommit(false); // set autocommit off for concurrent READ & WRITE
+            //System.out.println(Thread.currentThread().getName() +" insert: "+ transaction.toString());
             if(!transactionExists(transaction)){
+                status.newInsertion();
                 insertTransaction(transaction);
             }
-            conn.commit();
+            conn.commit();*/
         }
         catch (Exception e)
         {
@@ -104,7 +140,7 @@ public class Consumer implements Runnable {
 
 
     public boolean transactionExists(Transaction transaction) throws SQLException {
-        String sql = "SELECT * FROM `Transactions` WHERE `cid` = ? and `transaction_hash` = ? and `log_index` IS NULL ";
+        String sql = "SELECT EXISTS(SELECT * FROM `Transactions` WHERE `cid` = ? and `transaction_hash` = ? and `log_index` IS NULL )";
 
         PreparedStatement pstmt = conn.prepareStatement(sql);
         pstmt.setInt(1,config.collectionId);
@@ -112,10 +148,14 @@ public class Consumer implements Runnable {
 
         ResultSet resultSet = pstmt.executeQuery();
 
-        if (!resultSet.next() ) {
-            return false;
+        if (resultSet.next()) {
+            boolean exists = resultSet.getBoolean(1);
+            if (exists) {
+                return true;
+            }
         }
-        return true;
+        //System.out.println(transaction.toString());
+        return false;
     }
 
     private void insertTransaction(Transaction transaction) throws SQLException {
@@ -147,8 +187,12 @@ public class Consumer implements Runnable {
     private double weiToEth(BigInteger amount){
         // one eth is 10**18 wei
         // remove last 12 digits and convert to long
-        long value = Long.parseLong(amount.toString().substring(0,amount.toString().length()-12));
-        return value / (Math.pow(10,6));
+        if(amount.toString().length()>12){
+            long value = Long.parseLong(amount.toString().substring(0,amount.toString().length()-12));
+            return value / (Math.pow(10,6));
+        }else{
+            return 0;
+        }
     }
 
     private long weiToGwei(BigInteger amount){

@@ -13,7 +13,7 @@ import java.util.concurrent.Executor;
 
 public class ProducerManager implements Runnable{
 
-    private final BlockingQueue<Transaction> queue;
+    private final BlockingQueue<ArrayList<ByteStructure>> queue;
     private volatile boolean runFlag;
     private Config config;
     private BufferedReader bufferedReader;
@@ -26,12 +26,11 @@ public class ProducerManager implements Runnable{
 
     int numWorkers = 0;
 
-    public ProducerManager(BlockingQueue<Transaction> queue, Config config, Status status, AddressStore addressStore) {
+    public ProducerManager(BlockingQueue<ArrayList<ByteStructure>> queue, Config config, Status status, AddressStore addressStore) {
         this.queue = queue;
         this.config = config;
         runFlag = true;
         this.gson = new Gson();
-        this.currentBlock = config.startBlock;
         this.status = status;
         this.addressStore = addressStore;
         this.currentBlock = config.startBlock;
@@ -42,6 +41,7 @@ public class ProducerManager implements Runnable{
         try {
             RandomAccessFile f = new RandomAccessFile(config.transactionsFile, "r");
             contentLength = f.length();
+            System.out.println("Total file size:" +contentLength);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -62,12 +62,20 @@ public class ProducerManager implements Runnable{
                     throw new RuntimeException(e);
                 }
             }
-            while (!queue.isEmpty()) {}
+            System.out.println(Constants.STATUS+" waiting for consumers, queue size: "+ queue.size());
+            synchronized (status.monitor) {
+                try {
+                    status.monitor.wait();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            System.out.println("notified!!!");
             workers.clear();
             addressStore.createLevel();
             status.level++;
             status.resetCurrentBlock();
-            System.out.println(Constants.SUCCESS + "Total number of wallets added: " + addressStore.store.get(status.level - 1).size());
+            System.out.println(Constants.SUCCESS + "Total number of wallets added: " + addressStore.store.get(status.level).size());
         }
         System.out.println(Constants.SUCCESS + "Producer Manager completed!");
 

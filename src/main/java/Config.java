@@ -19,6 +19,10 @@ public class Config {
 
     public int producers;
 
+    public int dumpThreshold;
+
+    public int bufferLen;
+
     @Override
     public String toString() {
         return "Config{" +

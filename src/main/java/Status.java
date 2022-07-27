@@ -1,4 +1,6 @@
+import java.util.ArrayList;
 import java.util.TimerTask;
+import java.util.concurrent.BlockingQueue;
 
 public class Status extends TimerTask {
     long totalTrasactions;
@@ -11,7 +13,15 @@ public class Status extends TimerTask {
     private int currentBlock;
     private Config config;
 
-    public Status(Config config) {
+    public Object monitor;
+
+    private int working;
+
+    public int dbInsertions;
+
+    BlockingQueue<ArrayList<ByteStructure>> queue;
+
+    public Status(Config config, BlockingQueue<ArrayList<ByteStructure>> queue) {
         totalTrasactions = 0;
         currentTransactions = 0;
         queueSize = 0;
@@ -20,7 +30,10 @@ public class Status extends TimerTask {
         totalVertices = 0;
         ticks = 1;
         currentBlock = 1;
+        dbInsertions = 0;
         this.config = config;
+        this.queue = queue;
+        monitor = new Object();
     }
 
     @Override
@@ -32,9 +45,10 @@ public class Status extends TimerTask {
                 + " Vertices new: " + newVertices
                 + " Vertices total: " + totalVertices
                 + " Level: " + level
-                + " CurrentBLock: " + currentBlock
-                + " Progress: " + Math.round(progress) + " %"
+                //+ " CurrentBLock: " + currentBlock
+               // + " Progress: " + Math.round(progress) + " %"
                 + " QueueSize: " + queueSize
+                + " DB insertions: " + dbInsertions
                 + " \r");
         reset();
     }
@@ -51,6 +65,9 @@ public class Status extends TimerTask {
         currentTransactions++;
     }
 
+    public synchronized void newInsertion() {dbInsertions++;
+    }
+
     public synchronized void newVertex() {
         newVertices++;
     }
@@ -61,6 +78,26 @@ public class Status extends TimerTask {
 
     public void resetCurrentBlock() {
         currentBlock = 1;
+    }
+
+    public synchronized void startWork(){
+        this.working++;
+        queueSize = queue.size();
+    }
+    public synchronized void endWork(){
+        synchronized (monitor) {
+            this.working--;
+            if (working < 1 && queue.isEmpty()) {
+                monitor.notifyAll();
+            }
+        }
+    }
+
+    public boolean areWorking(){
+        if(this.working>0){
+            return true;
+        }
+        return false;
     }
 
     public int getCurrentBlock(){

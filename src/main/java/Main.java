@@ -27,14 +27,15 @@ public class Main {
         }
         Config config = gson.fromJson(reader, Config.class);
 
-        Status status = new Status(config);
-        BlockingQueue<Transaction> queue = new LinkedBlockingQueue<Transaction>(100000);
+
+        BlockingQueue<ArrayList<ByteStructure>> queue = new LinkedBlockingQueue<>(100000);
+        Status status = new Status(config,queue);
         AddressStore addressStore = new AddressStore(config);
         System.out.println(Constants.INFO + config);
         ProducerManager producer = new ProducerManager(queue, config, status, addressStore);
         Executor pool;
         if(config.readFile){
-            pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - config.producers - 2);
+            pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - config.producers );
         }else{
             pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2 - config.maxWorkers);
         }

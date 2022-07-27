@@ -1,21 +1,11 @@
-import com.google.gson.Gson;
-
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.charset.Charset;
-import java.nio.charset.CharsetDecoder;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 
 public class ProducerWorker implements Runnable{
-    private final BlockingQueue<Transaction> queue;
+    private final BlockingQueue<ArrayList<ByteStructure>> queue;
     private boolean runFlag;
     private Config config;
 
@@ -29,15 +19,24 @@ public class ProducerWorker implements Runnable{
     private long currentByte;
     private long toByte;
 
-    private StringBuilder stringTransaction;
+
 
     private boolean isFirstLine = true;
 
+    private ArrayList<ByteStructure> bufferOfBuffers;
+
+    int dumpThreshold;// = 10; //number of buffers
+
+    RandomAccessFile rf;
+
+    int bufferLen;// = 100000;//1048567;
+
+    int bufferid = 0;
 
 
 
 
-    public ProducerWorker(BlockingQueue<Transaction> queue, Config config, Status status,long fromByte, long toByte) {
+    public ProducerWorker(BlockingQueue<ArrayList<ByteStructure>> queue, Config config, Status status, long fromByte, long toByte) {
         this.queue = queue;
         this.config = config;
         runFlag = true;
@@ -45,60 +44,75 @@ public class ProducerWorker implements Runnable{
         this.fromByte = fromByte;
         this.currentByte = fromByte;
         this.toByte = toByte;
+        this.bufferOfBuffers = new ArrayList<ByteStructure>(dumpThreshold+1);
+        this.dumpThreshold = config.dumpThreshold;
+        this.bufferLen = config.bufferLen;
     }
 
 
     @Override
     public void run() {
         try {
-            FileChannel fileChannel  = new RandomAccessFile(config.transactionsFile, "r").getChannel();
-            fileChannel.position(this.fromByte);
-            stringTransaction = new StringBuilder();
-            ByteBuffer byteBuffer = ByteBuffer.allocate(4096);
+            rf  = new RandomAccessFile(config.transactionsFile, "r");
+            rf.seek(this.fromByte);
+            System.out.println("start reading from: "+fromByte + " to byte: "+toByte);
+            byte[] buffer = new byte[bufferLen];
             //CharsetDecoder charsetDecoder = Charset.forName("UTF-8").newDecoder();
-            while (fileChannel.read(byteBuffer) > 0 && runFlag) {
-                byteBuffer.flip();
-                readBuffer(byteBuffer);
-                byteBuffer.clear();
+            long read = rf.read(buffer);
+            while (rf.getFilePointer() < toByte && runFlag) {
+                cutAndInsert(buffer,read);
+                buffer = new byte[bufferLen];
+                read = rf.read(buffer);
             }
+            stop();
 
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void readBuffer(ByteBuffer buffer){
-        for (int i = 0; i < buffer.limit(); i++) {
-            char c = (char) buffer.get();
-            //System.out.print(c); //Print the content of file
-            this.currentByte++;
-            if ('\n' == c) {
-                if(isFirstLine){ // throw away the first line, which is read by the previous thread or is a header
-                    isFirstLine = false;
-                }else{
-                    enqueueTransaction(stringTransaction.toString());
-                }
-                stringTransaction = new StringBuilder();
-                if(this.fromByte + this.currentByte > this.toByte){
-                    //we reached the end
-                    stop();
-                    break;
-                }
-            }else{
-                stringTransaction.append(c);
-            }
+    public void cutAndInsert(byte[] buffer,long bytesRead){
+        bytesRead--;
+        long startOffset = 0;
+        long endOffset = 0;
+        if(isFirstLine){
+            isFirstLine = false;
+            char lastChar;
+            int i = 0;
+            do{
+                lastChar = (char) buffer[i];
+                i++;
+            }while(lastChar!='\n'&&i<bytesRead);
+            startOffset = i;
         }
+        char lastChar;
+        int i = (int) bytesRead;
+        do{
+            lastChar = (char) buffer[i-1];
+            i--;
+        }while(lastChar!='\n'&&i>0);
+        endOffset = i+1;
+        try {
+            //System.out.println("pointer: "+rf.getFilePointer());
+            rf.seek(rf.getFilePointer()-(bytesRead-endOffset));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        //System.out.println("offests: "+startOffset+" e: "+endOffset);
+        addBuffer(buffer,startOffset,endOffset);
+        /*for (int i = 0 ; i < 100;i++){
+            System.out.print((char)buffer[i]);
+        }
+        System.out.println();*/
+
     }
 
-    public void enqueueTransaction(String line){
-        Transaction transaction = new Transaction(line.split(","));
-        queue.offer(transaction);
-        status.queueSize = queue.size();
-        if (this.currentBlock < transaction.block_number) {
-            if(this.currentBlock != 0){
-                status.newBlock();
-            }
-            this.currentBlock = transaction.block_number;
+    public void addBuffer(byte[] buffer,long startOffset, long endOffset) {
+        bufferOfBuffers.add(new ByteStructure(buffer,startOffset,endOffset,bufferid));
+        if(bufferOfBuffers.size()>dumpThreshold){
+            //dump the buffer
+            queue.offer(bufferOfBuffers);
+            bufferOfBuffers = new ArrayList<ByteStructure>(dumpThreshold+1);
         }
     }
 
@@ -106,5 +120,9 @@ public class ProducerWorker implements Runnable{
 
     public void stop() {
         runFlag = false;
+        if(bufferOfBuffers.size()>0){
+            queue.offer(bufferOfBuffers);
+            bufferOfBuffers = new ArrayList<ByteStructure>(dumpThreshold+1);
+        }
     }
 }
