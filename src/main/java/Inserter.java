@@ -7,7 +7,7 @@ import java.util.concurrent.BlockingQueue;
 public class Inserter implements  Runnable{
 
     private final BlockingQueue<Transaction> insertionQueue;
-    private volatile boolean runFlag;
+    public volatile boolean fullBatch;
     private Config config;
     private Status status;
     private AddressStore addressStore;
@@ -17,11 +17,13 @@ public class Inserter implements  Runnable{
 
     private PreparedStatement batchStatement;
 
-    private int batchSize = 0;
+    public int batchSize = 0;
+
+    long start = System.currentTimeMillis();
 
     public Inserter(BlockingQueue<Transaction> insertionQueue, Config config, Status status, AddressStore addressStore) {
         this.insertionQueue = insertionQueue;
-        runFlag = true;
+        fullBatch = true;
         this.config = config;
         this.status = status;
         this.addressStore = addressStore;
@@ -33,11 +35,10 @@ public class Inserter implements  Runnable{
     }
 
     public void feed(){
-        while (runFlag) {
+        while (true) {
             try {
                 Transaction transaction = insertionQueue.take();
                 insertIntoDB(transaction);
-                status.trxQueueSize = insertionQueue.size();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -53,10 +54,10 @@ public class Inserter implements  Runnable{
             conn = DriverManager.getConnection(
                     "jdbc:mysql://" +
                             config.databaseAddress +
-                            ":" + config.databasePort + "/" + config.databaseName,
+                            ":" + config.databasePort + "/" + config.databaseName + "?rewriteBatchedStatements=true",
                     connectionProps);
             //conn.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
-            //conn.setAutoCommit(false); // set autocommit off for concurrent READ & WRITE
+            conn.setAutoCommit(false); // set autocommit off for concurrent READ & WRITE
         } catch (SQLException e) {
             System.out.println(Constants.NETWORK + "Failed to connected to database: " + e.getMessage());
             e.printStackTrace();
@@ -95,6 +96,7 @@ public class Inserter implements  Runnable{
 
             // create the mysql insert preparedstatement
             batchStatement = conn.prepareStatement(query);
+            fullBatch = true;
         }
 
         batchStatement.setInt    (1, config.collectionId);
@@ -114,15 +116,42 @@ public class Inserter implements  Runnable{
         batchSize++;
 
         if(batchSize >= config.batchLimit || insertionQueue.isEmpty() ){
+//            long finish = System.currentTimeMillis();
+//            long timeElapsed = finish - start;
+//            System.out.println("Time for preparing "+batchSize+" inserts is: "+timeElapsed);
+//            start = System.currentTimeMillis();
             int[] count = batchStatement.executeBatch();
+            conn.commit(); // here
+//            finish = System.currentTimeMillis();
+//            timeElapsed = finish - start;
+//            System.out.println("Flight time is: "+timeElapsed);
             for (int c: count ) {
                 if(c==0){
                     System.out.println("errors when inserting");
                 }
             }
-            batchSize = 0;
+            fullBatch = false;
+            batchSize = 0; // 162488
         }
 
+    }
+
+    public void dumpBatch(){
+        if(batchSize>0) {
+            try {
+                int[] count = batchStatement.executeBatch();
+
+                conn.commit(); // here
+
+                for (int c : count) {
+                    if (c == 0) {
+                        System.out.println("errors when inserting");
+                    }
+                }
+            } catch (SQLException e) {
+                System.out.println("error during final insertion: " + e);
+            }
+        }
     }
 
     public boolean alreadyInserted(Transaction transaction){
@@ -194,6 +223,8 @@ public class Inserter implements  Runnable{
         long gwei = Long.parseLong(amount.divide(new BigInteger("1000000000")).toString());
         return gwei;
     }
+
+
 
 
 }

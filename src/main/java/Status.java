@@ -1,8 +1,9 @@
 import java.util.TimerTask;
+import java.util.concurrent.BlockingQueue;
 
 public class Status extends TimerTask {
     long totalTransactions;
-    long trxQueueSize;
+    volatile long trxQueueSize;
     long currentTransactions;
     int level;
     private int ticks;
@@ -11,11 +12,13 @@ public class Status extends TimerTask {
     private int currentBlock;
     private Config config;
 
-    public int lineQueueSize;
+    public volatile int lineQueueSize;
+    public BlockingQueue<String> lineQueue;
+    public BlockingQueue<Transaction> insertionQueue;
 
     public int inserted;
 
-    public Status(Config config) {
+    public Status(Config config, BlockingQueue<String> lineQueue,BlockingQueue<Transaction> insertionQueue) {
         totalTransactions = 0;
         currentTransactions = 0;
         trxQueueSize = 0;
@@ -27,6 +30,9 @@ public class Status extends TimerTask {
         currentBlock = 1;
         this.config = config;
         inserted = 0;
+        this.lineQueue=lineQueue;
+        this.insertionQueue = insertionQueue;
+
     }
 
     @Override
@@ -40,8 +46,8 @@ public class Status extends TimerTask {
                 + " Level: " + level
                 + " CurrentBLock: " + currentBlock
                 + " Progress: " + Math.round(progress) + " %"
-                + " Line queueSize: " + lineQueueSize
-                + " Transaction queueSize: " + trxQueueSize
+                + " Line queueSize: " + lineQueue.size()
+                + " Transaction queueSize: " + insertionQueue.size()
                 + " Inserted in DB: " + inserted
                 + " \r");
         reset();

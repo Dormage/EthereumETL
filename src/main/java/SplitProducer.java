@@ -44,12 +44,12 @@ public class SplitProducer implements Runnable {
                 //pay attention to the csv header
                 line = bufferedReader.readLine();
                 if(!line.contains("nonce")){
-                    queue.offer(line);
+                    queue.put(line);
                     status.newTransaction();
                 }
 
                 while ((line = bufferedReader.readLine()) != null) {
-                    queue.offer(line);
+                    queue.put(line);
                     status.newTransaction();
                 }
                 //System.out.println(Constants.STATUS+"Consumer " + Thread.currentThread().getName() + " finished reading " + sourceFile.getName() + " file!");

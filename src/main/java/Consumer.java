@@ -33,7 +33,6 @@ public class Consumer implements Runnable {
             try {
                 Transaction transaction = new Transaction(lineQueue.take().split(","),addressStore.getCurrentLevel()-1);
                 parseTransaction(transaction);
-                status.newTransaction();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -47,22 +46,27 @@ public class Consumer implements Runnable {
             //filter out non interesting transactions
             if(transaction.value.compareTo(new BigInteger("0")) != 0 && transaction.input.compareTo("0x") == 0){
                 String lookup = String.valueOf(addressStore.contains(transaction.from_address)) + "--" + String.valueOf(addressStore.contains(transaction.to_address));
-                switch (lookup){
-                    case "true--false":
-                        addressStore.add(transaction.to_address);
-                        insertionQueue.offer(transaction);
-                        status.newVertex();
-                        break;
-                    case "false--true":
-                        addressStore.add(transaction.from_address);
-                        insertionQueue.offer(transaction);
-                        status.newVertex();
-                        break;
-                    case "true--true":
-                        insertionQueue.offer(transaction);
-                        break;
+                try {
+                    switch (lookup) {
+                        case "true--false":
+                            if (addressStore.add(transaction.to_address)) {
+                                status.newVertex();
+                            }
+                            insertionQueue.put(transaction);
+                            break;
+                        case "false--true":
+                            if (addressStore.add(transaction.from_address)) {
+                                status.newVertex();
+                            }
+                            insertionQueue.put(transaction);
+                            break;
+                        case "true--true":
+                            insertionQueue.put(transaction);
+                            break;
+                    }
+                }catch (Exception e){
+                    System.out.println("failed to insert in transaction queueu: "+ e);
                 }
-                status.lineQueueSize = lineQueue.size();
             }
         }
     }

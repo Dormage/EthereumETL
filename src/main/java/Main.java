@@ -29,9 +29,10 @@ public class Main {
         }
         Config config = gson.fromJson(reader, Config.class);
 
-        Status status = new Status(config);
-        BlockingQueue<String> lineQueue = new LinkedBlockingQueue<String>(100000);
+
+        BlockingQueue<String> lineQueue = new LinkedBlockingQueue<String>(1000000);
         BlockingQueue<Transaction> insertionQueue = new LinkedBlockingQueue<Transaction>(100000);
+        Status status = new Status(config,lineQueue,insertionQueue);
         AddressStore addressStore = new AddressStore(config);
         System.out.println(Constants.INFO + config);
         //ProducerManager producer = new ProducerManager(lineQueue, config, status, addressStore);
@@ -53,19 +54,20 @@ public class Main {
                 System.out.println(Constants.WARN + "Splitting file, this will take a while...");
                 File root = new File(System.getProperty("user.dir"));
                 dir = new File(root.getAbsolutePath()+ File.separator + "cache");
-                if (!dir.mkdirs()) {
-                    System.out.println(Constants.ERROR + "Failed to create directory cache");
+                if (dir.mkdirs()) {
+                    //System.out.println(Constants.ERROR + "Failed to create directory cache");
+
+                    if (!root.isDirectory()) {
+                        System.out.println(Constants.ERROR + "File directory not found!");
+                    }
+                    String command[] = new String[]{"split", "-d",
+                            "-C", "" + config.splitSize,
+                            "" + config.transactionsFile,
+                            dir.getAbsolutePath() + File.separator + "part"};
+                    ProcessBuilder builder = new ProcessBuilder(command);
+                    Process process = builder.start();
+                    process.waitFor();
                 }
-                if (!root.isDirectory()) {
-                    System.out.println(Constants.ERROR + "File directory not found!");
-                }
-                String command[] = new String[]{"split", "-d",
-                        "-C", "" + config.splitSize,
-                        "" + config.transactionsFile,
-                        dir.getAbsolutePath() + File.separator + "part"};
-                ProcessBuilder builder = new ProcessBuilder(command);
-                Process process = builder.start();
-                process.waitFor();
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (InterruptedException e) {
@@ -86,6 +88,9 @@ public class Main {
         }
         Timer timer = new Timer();
         timer.schedule(status, 0, 1000);
+        Inserter dbFeeder = new Inserter(insertionQueue,config,status,addressStore);
+        Thread thread = new Thread(dbFeeder);
+        thread.start();
         if (config.splitFile) {
             CyclicBarrier cyclicBarrier = new CyclicBarrier(files.length, () -> {
                 System.out.println("Completed level " +status.level+" waiting empty queue");
@@ -94,13 +99,12 @@ public class Main {
                 status.level++;
                 addressStore.createLevel();
                 if(status.level == config.targetLevel){
-                    while(!insertionQueue.isEmpty()){}
+                    while(!lineQueue.isEmpty()||!insertionQueue.isEmpty()||!dbFeeder.fullBatch){}
+                    dbFeeder.dumpBatch();
                     System.exit(0);
                 }
             });
 
-            Thread thread = new Thread(new Inserter(insertionQueue,config,status,addressStore));
-            thread.start();
 
             for (int i = 0; i < files.length; i++) {
                     producerPool.execute(new SplitProducer(lineQueue, config, status, addressStore, files[i], cyclicBarrier));

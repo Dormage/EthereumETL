@@ -54,13 +54,14 @@ public class AddressStore {
     If not then insert the address in layer n
      */
 
-    public synchronized void add(String address){
+    public synchronized boolean add(String address){
         for (HashSet<String> level:this.store) { // verify if in one of the layers
             if(level.contains(address)){
-                return;
+                return false;
             }
         }
         this.store.get(this.store.size()-1).add(address); // if not insert
+        return true;
     }
 
     /*
