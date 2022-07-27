@@ -20,6 +20,8 @@ public class Config {
     public int producers;
     public long splitSize;
 
+    public int batchLimit;
+
     @Override
     public String toString() {
         return "Config{" +

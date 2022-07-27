@@ -76,7 +76,7 @@ public class ProducerWorker implements Runnable{
                 if(isFirstLine){ // throw away the first line, which is read by the previous thread or is a header
                     isFirstLine = false;
                 }else{
-                    enqueueTransaction(stringTransaction.toString());
+                    //enqueueTransaction(stringTransaction.toString());
                 }
                 stringTransaction = new StringBuilder();
                 if(this.fromByte + this.currentByte > this.toByte){
@@ -90,6 +90,7 @@ public class ProducerWorker implements Runnable{
         }
     }
 
+/*
     public void enqueueTransaction(String line){
         Transaction transaction = new Transaction(line.split(","));
         queue.offer(transaction);
@@ -101,6 +102,7 @@ public class ProducerWorker implements Runnable{
             this.currentBlock = transaction.block_number;
         }
     }
+*/
 
 
 

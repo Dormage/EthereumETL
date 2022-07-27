@@ -14,6 +14,7 @@ public class AddressStore {
     private int currentLevel;
 
 
+
     public AddressStore(Config config){
         this.config = config;
         this.connectDatabase();
@@ -22,6 +23,7 @@ public class AddressStore {
         this.store.add(new HashSet<String>()); // create layer 1
         this.currentLevel = 1;
     }
+
 
     public int getCurrentLevel(){
         return this.currentLevel;
@@ -106,6 +108,7 @@ public class AddressStore {
             e.printStackTrace();
         }
     }
+
 
 
 

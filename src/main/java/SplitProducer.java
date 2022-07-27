@@ -6,7 +6,7 @@ import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
 public class SplitProducer implements Runnable {
-    private final BlockingQueue<Transaction> queue;
+    private final BlockingQueue<String> queue;
     private volatile boolean runFlag;
     private Config config;
     private BufferedReader bufferedReader;
@@ -19,7 +19,8 @@ public class SplitProducer implements Runnable {
     private CyclicBarrier cyclicBarrier;
 
 
-    public SplitProducer(BlockingQueue<Transaction> queue, Config config, Status status, AddressStore addressStore, File sourceFile, CyclicBarrier cyclicBarrier) {
+
+    public SplitProducer(BlockingQueue<String> queue, Config config, Status status, AddressStore addressStore, File sourceFile, CyclicBarrier cyclicBarrier) {
         this.queue = queue;
         this.config = config;
         runFlag = true;
@@ -39,9 +40,16 @@ public class SplitProducer implements Runnable {
             while (runFlag) {
                 bufferedReader = new BufferedReader(new FileReader(sourceFile));
                 String line;
+
+                //pay attention to the csv header
+                line = bufferedReader.readLine();
+                if(!line.contains("nonce")){
+                    queue.offer(line);
+                    status.newTransaction();
+                }
+
                 while ((line = bufferedReader.readLine()) != null) {
-                    Transaction transaction = new Transaction(line.split(","));
-                    queue.offer(transaction);
+                    queue.offer(line);
                     status.newTransaction();
                 }
                 //System.out.println(Constants.STATUS+"Consumer " + Thread.currentThread().getName() + " finished reading " + sourceFile.getName() + " file!");

@@ -2,7 +2,7 @@ import java.util.TimerTask;
 
 public class Status extends TimerTask {
     long totalTransactions;
-    long queueSize;
+    long trxQueueSize;
     long currentTransactions;
     int level;
     private int ticks;
@@ -11,16 +11,22 @@ public class Status extends TimerTask {
     private int currentBlock;
     private Config config;
 
+    public int lineQueueSize;
+
+    public int inserted;
+
     public Status(Config config) {
         totalTransactions = 0;
         currentTransactions = 0;
-        queueSize = 0;
+        trxQueueSize = 0;
+        lineQueueSize = 0;
         level = 0;
         newVertices = 0;
         totalVertices = 0;
         ticks = 1;
         currentBlock = 1;
         this.config = config;
+        inserted = 0;
     }
 
     @Override
@@ -34,7 +40,9 @@ public class Status extends TimerTask {
                 + " Level: " + level
                 + " CurrentBLock: " + currentBlock
                 + " Progress: " + Math.round(progress) + " %"
-                + " QueueSize: " + queueSize
+                + " Line queueSize: " + lineQueueSize
+                + " Transaction queueSize: " + trxQueueSize
+                + " Inserted in DB: " + inserted
                 + " \r");
         reset();
     }
@@ -66,4 +74,5 @@ public class Status extends TimerTask {
     public int getCurrentBlock(){
         return this.currentBlock;
     }
+
 }
