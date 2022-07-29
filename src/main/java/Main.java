@@ -89,7 +89,8 @@ public class Main {
                     CsvParser parser = new CsvParser(settings);
                     long time = System.currentTimeMillis();
                     List<String[]> parsedRows = parser.parseAll(inputReader);
-                    System.out.println(Constants.STATUS + "Read: " + parsedRows.size() + " rows in: " + (System.currentTimeMillis() - time) / 1000 + " seconds");
+                    System.out.println(Constants.STATUS + "Read: " + parsedRows.size() + " rows in: " + (System.currentTimeMillis() - time) / 1000 + " seconds" );
+                    System.out.println(Constants.SUCCESS+ "Written " + writtenLines + " lines");
                     parsedRows.parallelStream().forEach(tokens -> {
                         Transaction transaction = new Transaction(tokens);
                         if (transaction.value.compareTo(new BigInteger("0")) != 0 && transaction.input.compareTo("0x") == 0) {
