@@ -41,8 +41,8 @@ public class Transaction {
             this.gas_price = new BigInteger(line[9]);
             this.input = line[10];
             this.block_timestamp = Long.parseLong(line[11]) * 1000;
-            this.max_fee_per_gas = new BigInteger((line[12].equals("")) ? "0" : line[12]);
-            this.max_priority_fee_per_gas = new BigInteger((line[13].equals("")) ? "0" : line[13]);
+            //this.max_fee_per_gas = new BigInteger((line[12].equals("")) ? "0" : line[12]);
+            //this.max_priority_fee_per_gas = new BigInteger((line[13].equals("")) ? "0" : line[13]);
             this.transaction_type = 0;
             this.level = level;
     }
