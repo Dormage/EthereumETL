@@ -29,6 +29,11 @@
             <artifactId>camel-univocity-parsers</artifactId>
             <version>3.18.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-univocity-parsers</artifactId>
+            <version>3.18.0</version>
+        </dependency>
 
     </dependencies>
 </project>

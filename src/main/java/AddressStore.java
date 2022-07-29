@@ -13,6 +13,8 @@ public class AddressStore {
 
     private int currentLevel;
 
+    private HashSet<String> written_transactions = new HashSet<>();
+
 
 
     public AddressStore(Config config){
@@ -63,6 +65,17 @@ public class AddressStore {
         this.store.get(this.store.size()-1).add(address); // if not insert
         return true;
     }
+
+    public synchronized boolean isAlreadyWritten(String hash){
+        if(written_transactions.contains(hash)){
+            return true;
+        }else {
+            written_transactions.add(hash);
+            return false;
+        }
+
+    }
+
 
     /*
     Simply create a new lavel in the store

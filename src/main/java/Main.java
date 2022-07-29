@@ -18,14 +18,26 @@ import java.util.concurrent.*;
 
 public class Main {
     public static int writtenLines=0;
-    static FileOutputStream fileOutputStream = null;
+
+    public static CsvInserter inserter;
+
+    public static BlockingQueue<String[]> queue = new LinkedBlockingQueue<String[]>();
+    
+    public static int currentLevel = 0;
+
+    public static long insertion_count = 0;
+    public static long trx_count = 0;
+
+    //only for debugging
+    public static synchronized void  offerInsert(){
+        insertion_count++;
+    }
+    //only for debugging
+    public static synchronized void  countTrx(){
+        trx_count++;
+    }
+
     public static void main(String[] args) {
-        //delete leftover traces from ETL
-        try {
-            Files.delete(Paths.get("last_synced_block.txt"));
-            System.out.println(Constants.SUCCESS + "Deleted previous files: ");
-        } catch (IOException e) {
-        }
         //load config
         Gson gson = new Gson();
         Reader reader = null;
@@ -36,6 +48,11 @@ public class Main {
             e.printStackTrace();
         }
         Config config = gson.fromJson(reader, Config.class);
+        try {
+            Files.delete(Paths.get(config.outputFile));
+            System.out.println(Constants.SUCCESS + "Deleted previous files: ");
+        } catch (IOException e) {
+        }
         AddressStore addressStore = new AddressStore(config);
         System.out.println(Constants.INFO + config);
 
@@ -70,12 +87,16 @@ public class Main {
 
         }
 
-        try {
-            fileOutputStream = new FileOutputStream(new File(config.outputFile));
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        }
+
+
+        //create the CSV writer
+        inserter = new CsvInserter(queue,config,addressStore);
+
+        Thread thread = new Thread(inserter);
+        thread.start();
+
         for (int i = 0; i <config.targetLevel; i++) {
+            long level_time = System.currentTimeMillis();
             for (int j = 0; j < files.length; j++) {
                 System.out.println(Constants.SUCCESS + "Opening new file: " + files[j].getName());
                 try (Reader inputReader = new InputStreamReader(new FileInputStream(files[j]), "UTF-8")) {
@@ -90,44 +111,56 @@ public class Main {
                     long time = System.currentTimeMillis();
                     List<String[]> parsedRows = parser.parseAll(inputReader);
                     System.out.println(Constants.STATUS + "Read: " + parsedRows.size() + " rows in: " + (System.currentTimeMillis() - time) / 1000 + " seconds" );
-                    System.out.println(Constants.SUCCESS+ "Written " + writtenLines + " lines");
-                    parsedRows.parallelStream().forEach(tokens -> {
-                        Transaction transaction = new Transaction(tokens);
-                        if (transaction.value.compareTo(new BigInteger("0")) != 0 && transaction.input.compareTo("0x") == 0) {
-                            String lookup = String.valueOf(addressStore.contains(transaction.from_address)) + "--" + String.valueOf(addressStore.contains(transaction.to_address));
+                    time = System.currentTimeMillis();
+                    parsedRows.parallelStream().forEach(token -> {
+                        String hash = token[0], from = token[5], to = token[6], value = token[7], input = token[10];
+                        if (value.compareTo("0") != 0 && input.compareTo("0x") == 0) {
+                            String lookup = String.valueOf(addressStore.contains(from)) + "--" + String.valueOf(addressStore.contains(to));
                             try {
                                 switch (lookup) {
                                     case "true--false":
-                                        if (addressStore.add(transaction.to_address)) {
+                                        addressStore.add(to);
+                                        if(!addressStore.isAlreadyWritten(hash)){
+                                            token[13] = Integer.toString(currentLevel);// change to current level
+                                            queue.offer(token);
                                         }
-                                        writeTransaction(transaction);
                                         break;
                                     case "false--true":
-                                        if (addressStore.add(transaction.from_address)) {
+                                        addressStore.add(from);
+                                        if(!addressStore.isAlreadyWritten(hash)){
+                                            token[13] = Integer.toString(currentLevel);// change to current level
+                                            queue.offer(token);
                                         }
-                                        writeTransaction(transaction);
                                         break;
                                     case "true--true":
-                                        writeTransaction(transaction);
+                                        if(!addressStore.isAlreadyWritten(hash)){
+                                            token[13] = Integer.toString(currentLevel);// change to current level
+                                            queue.offer(token);
+                                        }
                                         break;
                                 }
                             } catch (Exception e) {
-                                System.out.println("failed to insert in transaction queue: " + e);
+                                System.out.println("failed to insert in transaction:" + e);
+                                System.out.println("Queueu size: "+ queue.size());
                             }
                         }
                     });
+                    System.out.println(Constants.STATUS + "Processed in: " + (System.currentTimeMillis() - time) / 1000 + " seconds" );
                 } catch (IOException e) {
                     // handle exception
+                    System.out.println("Exception when reading files: "+ e);
                 }
             }
+            System.out.println(Constants.STATUS+ "Level "+currentLevel+ " completed in: " + (System.currentTimeMillis() - level_time) / 1000 + " seconds" +" total written lines: "+ inserter.writtenLines);
+            currentLevel++; //increase level
+            addressStore.createLevel();
         }
-    }
-    public static void writeTransaction( Transaction transactions){
-        try (Writer outputWriter = new OutputStreamWriter(fileOutputStream,"UTF-8")){
-            CsvWriter writer = new CsvWriter(outputWriter, new CsvWriterSettings());
-            writer.writeRowsAndClose((Collection<Object[]>) transactions);
-        } catch (IOException e) {
-            // handle exception
+        //System.out.println("offered: "+insertion_count + " all trx: "+trx_count);
+        while(!queue.isEmpty()){//busy waiting
         }
+        inserter.dumpBatch();
+        System.exit(0);
+
     }
+
 }
