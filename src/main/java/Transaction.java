@@ -28,7 +28,7 @@ public class Transaction {
 
     int level;
 
-    public Transaction(String[] line,int level){
+    public Transaction(String[] line){
             this.hash = line[0];
             this.nonce = Integer.parseInt(line[1]);
             this.block_hash = line[2];
@@ -44,7 +44,6 @@ public class Transaction {
             //this.max_fee_per_gas = new BigInteger((line[12].equals("")) ? "0" : line[12]);
             //this.max_priority_fee_per_gas = new BigInteger((line[13].equals("")) ? "0" : line[13]);
             this.transaction_type = 0;
-            this.level = level;
     }
 
     @Override

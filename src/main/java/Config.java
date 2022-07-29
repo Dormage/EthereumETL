@@ -19,8 +19,8 @@ public class Config {
     public boolean splitFile;
     public int producers;
     public long splitSize;
-
     public int batchLimit;
+    public String outputFile;
 
     @Override
     public String toString() {

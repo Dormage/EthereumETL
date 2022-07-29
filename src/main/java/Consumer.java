@@ -31,7 +31,7 @@ public class Consumer implements Runnable {
     public void consume() {
         while (runFlag) {
             try {
-                Transaction transaction = new Transaction(lineQueue.take().split(","),addressStore.getCurrentLevel()-1);
+                Transaction transaction = new Transaction(lineQueue.take().split(","));
                 parseTransaction(transaction);
             } catch (InterruptedException e) {
                 e.printStackTrace();

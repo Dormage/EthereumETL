@@ -2,6 +2,8 @@ import com.google.gson.Gson;
 import com.univocity.parsers.common.processor.BatchedColumnProcessor;
 import com.univocity.parsers.csv.CsvParser;
 import com.univocity.parsers.csv.CsvParserSettings;
+import com.univocity.parsers.csv.CsvWriter;
+import com.univocity.parsers.csv.CsvWriterSettings;
 
 import javax.swing.*;
 import java.io.*;
@@ -9,11 +11,14 @@ import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Timer;
 import java.util.concurrent.*;
 
 public class Main {
+    public static int writtenLines=0;
+    static FileOutputStream fileOutputStream = null;
     public static void main(String[] args) {
         //delete leftover traces from ETL
         try {
@@ -31,25 +36,9 @@ public class Main {
             e.printStackTrace();
         }
         Config config = gson.fromJson(reader, Config.class);
-
-
-        BlockingQueue<String> lineQueue = new LinkedBlockingQueue<String>();
-        BlockingQueue<Transaction> insertionQueue = new LinkedBlockingQueue<Transaction>(100000);
-        Status status = new Status(config, lineQueue, insertionQueue);
         AddressStore addressStore = new AddressStore(config);
         System.out.println(Constants.INFO + config);
 
-        //ProducerManager producer = new ProducerManager(lineQueue, config, status, addressStore);
-        Executor pool;
-        if (config.readFile) {
-            pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - config.producers - 2);
-        } else {
-            pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() - 2 - config.maxWorkers);
-        }
-        Executor producerPool = null;
-        if (config.splitFile) {
-            producerPool = Executors.newCachedThreadPool();
-        }
         File files[] = null;
         if (config.splitFile) {
             Long startTime = System.currentTimeMillis();
@@ -81,66 +70,63 @@ public class Main {
 
         }
 
-
-
- /*
-        List<Consumer> consumers = new ArrayList<>();
-        for (int i = 0; i < Runtime.getRuntime().availableProcessors() - config.producers - 2; i++) {
-            consumers.add(new Consumer(lineQueue, insertionQueue, config, status, addressStore));
+        try {
+            fileOutputStream = new FileOutputStream(new File(config.outputFile));
+        } catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
         }
-        for (Consumer consumer : consumers) {
-            pool.execute(consumer);
-        }
-
-        Timer timer = new Timer();
-        timer.schedule(status, 0, 1000);
-        Inserter dbFeeder = new Inserter(insertionQueue, config, status, addressStore);
-        Thread thread = new Thread(dbFeeder);
-        thread.start();
-*/
-        for (int i = 0; i <files.length; i++) {
-            System.out.println(Constants.SUCCESS+"Opening new file: " +files[i].getName());
-            try (Reader inputReader = new InputStreamReader(new FileInputStream(files[i]),"UTF-8")){
-                CsvParserSettings settings = new CsvParserSettings();
-                settings.setProcessor(new BatchedColumnProcessor(100) {
-                    @Override
-                    public void batchProcessed(int rowsInThisBatch) {
-                    }
-                });
-                settings.setMaxCharsPerColumn(4097*100);
-                CsvParser parser = new CsvParser(settings);
-                long time = System.currentTimeMillis();
-                List<String[]> parsedRows = parser.parseAll(inputReader);
-                System.out.println(Constants.STATUS+ "Read: " + parsedRows.size() +" rows in: " + (System.currentTimeMillis() - time)/1000 + " seconds");
-                parsedRows.parallelStream().forEach(tokens ->{
-                    Transaction transaction = new Transaction(tokens,status.level);
-                    if(transaction.value.compareTo(new BigInteger("0")) != 0 && transaction.input.compareTo("0x") == 0){
-                        String lookup = String.valueOf(addressStore.contains(transaction.from_address)) + "--" + String.valueOf(addressStore.contains(transaction.to_address));
-
-                        try {
-                            switch (lookup) {
-                                case "true--false":
-                                    if (addressStore.add(transaction.to_address)) {
-                                    }
-                                    //insertionQueue.put(transaction);
-                                    break;
-                                case "false--true":
-                                    if (addressStore.add(transaction.from_address)) {
-                                    }
-                                    //insertionQueue.put(transaction);
-                                    break;
-                                case "true--true":
-                                    //insertionQueue.put(transaction);
-                                    break;
-                            }
-                        }catch (Exception e){
-                            System.out.println("failed to insert in transaction queue: "+ e);
+        for (int i = 0; i <config.targetLevel; i++) {
+            for (int j = 0; j < files.length; j++) {
+                System.out.println(Constants.SUCCESS + "Opening new file: " + files[j].getName());
+                try (Reader inputReader = new InputStreamReader(new FileInputStream(files[j]), "UTF-8")) {
+                    CsvParserSettings settings = new CsvParserSettings();
+                    settings.setProcessor(new BatchedColumnProcessor(100) {
+                        @Override
+                        public void batchProcessed(int rowsInThisBatch) {
                         }
-                    }
-                });
-            } catch(IOException e){
-                // handle exception
+                    });
+                    settings.setMaxCharsPerColumn(4097 * 100);
+                    CsvParser parser = new CsvParser(settings);
+                    long time = System.currentTimeMillis();
+                    List<String[]> parsedRows = parser.parseAll(inputReader);
+                    System.out.println(Constants.STATUS + "Read: " + parsedRows.size() + " rows in: " + (System.currentTimeMillis() - time) / 1000 + " seconds");
+                    parsedRows.parallelStream().forEach(tokens -> {
+                        Transaction transaction = new Transaction(tokens);
+                        if (transaction.value.compareTo(new BigInteger("0")) != 0 && transaction.input.compareTo("0x") == 0) {
+                            String lookup = String.valueOf(addressStore.contains(transaction.from_address)) + "--" + String.valueOf(addressStore.contains(transaction.to_address));
+                            try {
+                                switch (lookup) {
+                                    case "true--false":
+                                        if (addressStore.add(transaction.to_address)) {
+                                        }
+                                        writeTransaction(transaction);
+                                        break;
+                                    case "false--true":
+                                        if (addressStore.add(transaction.from_address)) {
+                                        }
+                                        writeTransaction(transaction);
+                                        break;
+                                    case "true--true":
+                                        writeTransaction(transaction);
+                                        break;
+                                }
+                            } catch (Exception e) {
+                                System.out.println("failed to insert in transaction queue: " + e);
+                            }
+                        }
+                    });
+                } catch (IOException e) {
+                    // handle exception
+                }
             }
+        }
+    }
+    public static void writeTransaction( Transaction transactions){
+        try (Writer outputWriter = new OutputStreamWriter(fileOutputStream,"UTF-8")){
+            CsvWriter writer = new CsvWriter(outputWriter, new CsvWriterSettings());
+            writer.writeRowsAndClose((Collection<Object[]>) transactions);
+        } catch (IOException e) {
+            // handle exception
         }
     }
 }
